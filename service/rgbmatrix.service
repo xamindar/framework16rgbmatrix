@@ -1,0 +1,17 @@
+[Unit]
+Description=Framework 16 LED System Monitor
+After=network.target
+#After=systemd-udevd.service
+StartLimitIntervalSec=300
+StartLimitBurst=150
+
+[Service]
+Type=simple
+Restart=always
+#ExecStart=/usr/bin/ledmatrix_widgets
+WorkingDirectory=/usr/local/share/xamLedMatrix
+ExecStart=python3 ./run_rgb_matrix.py
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

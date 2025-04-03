@@ -1,0 +1,2 @@
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2e8a", ATTRS{idProduct}=="f00a", ATTRS{serial}=="E66260879734732B", SYMLINK+="ttyRGBM1", GROUP="uucp"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2e8a", ATTRS{idProduct}=="f00a", ATTRS{serial}=="E66260879712432F", SYMLINK+="ttyRGBM2", GROUP="uucp"
