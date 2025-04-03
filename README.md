@@ -40,4 +40,4 @@ I recommend using udev rules to set persistent names for these input modules, so
             'line_brown': (lambda row: self.line_module(row, 'line_brown'), 1)
 
 
-
+<img src="docs/images/IMG_20250402_004616_HDR.jpg" height="400" />
