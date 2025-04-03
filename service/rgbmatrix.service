@@ -8,8 +8,7 @@ StartLimitBurst=150
 [Service]
 Type=simple
 Restart=always
-#ExecStart=/usr/bin/ledmatrix_widgets
-WorkingDirectory=/usr/local/share/xamLedMatrix
+WorkingDirectory=/usr/local/share/framework16rgbmatrix
 ExecStart=python3 ./run_rgb_matrix.py
 RestartSec=2
 
