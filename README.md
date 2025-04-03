@@ -2,7 +2,7 @@
 Python script to display stats and info on the rgb matrix for framework16.
 
 This is something I have been toying around with. 
-Ideas for displaying data about the system on these rgb led matrix modules by Koe Schroedl. - https://jschroedl.com/rgb-start/
+Ideas for displaying data about the system on these rgb led matrix modules by Joe Schroedl. - https://jschroedl.com/rgb-start/
 
 Very rough script at the moment that needs much cleanup and organization, but it works (on Linux).
 I recommend using udev rules to set persistent names for these input modules, so removing them and inserting them will keep the same names. You can look at my udev rule for an example, just update the serial to match your modules.
