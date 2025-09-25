@@ -12,7 +12,7 @@ I recommend using udev rules to set persistent names for these input modules, so
 1. Place **led_config.ini** and **run_rgb_matrix.py** under /usr/local/share/framework16rgbmatrix/
 2. Place **rgbmatrix.service** under /etc/systemd/system/
 
-   -Run "systemctl daemon-reload" to make sysemd aware of it.
+   -Run "systemctl daemon-reload" to make systemd aware of it.
 
 3. Place **98-rgb-led-matrix.rules** under /etc/udev/rules.d/
 
