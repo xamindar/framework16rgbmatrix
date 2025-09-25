@@ -6,6 +6,24 @@ Ideas for displaying data about the system on these rgb led matrix modules by Jo
 
 Very rough script at the moment that needs much cleanup and organization, but it works (on Linux).
 I recommend using udev rules to set persistent names for these input modules, so removing them and inserting them will keep the same names. You can look at my udev rule for an example, just update the serial to match your modules.
+***
+###Simple Installation Steps (Linux):
+
+1) Place led_config.ini and run_rgb_matrix.py under /usr/local/share/framework16rgbmatrix/
+
+2) Place rgbmatrix.service under /etc/systemd/system/
+   -Run "systemctl daemon-reload" to make sysemd aware of it.
+
+3) Place 98-rgb-led-matrix.rules under /etc/udev/rules.d/
+   -Modify 98-rgb-led-matrix.rules to contain serial numvers of your rgb matrix modules. Get serials with something like 'lsusb -vv | grep "iProduct\|iSerial" | grep -A1 "RP2040"'.
+   -Run the folloing to apply new rules: "udevadm control --reload-rules && udevadm trigger"
+
+4) Edit the /usr/local/share/framework16rgbmatrix/led_config.ini config file and make any modifications needed.
+   
+5) Enable and start the service:
+   systemctl enable --now rgbmatrix.service
+***
+
 
 -Configure them by modifying the led_config.ini file. Options are explained in comments.
 -To re-arange the order of each module and enable ones you want to use, edit the panel_1_order and panel_2_order in the config. Currently available modules are the following:
