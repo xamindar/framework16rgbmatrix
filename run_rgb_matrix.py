@@ -201,6 +201,16 @@ class LEDMatrixController:
                 brightness = int(f.read().strip())
             logger.debug(f"Got brightness: {brightness}")
 
+            # Derive max_brightness file path from brightness_source
+            brightness_source = self.config['Settings']['brightness_source']
+            max_brightness_path = '/'.join(brightness_source.split('/')[:-1]) + '/max_brightness'
+
+            # Read max_brightness from the system file
+            with open(max_brightness_path, 'r') as f:
+                max_brightness_source = int(f.read().strip())
+            logger.debug(f"Got max_brightness_source: {max_brightness_source}")
+
+            # rgb matrix brightness ranges
             max_brightness = int(self.config['Settings'].get('max_brightness', 255))
             min_brightness = int(self.config['Settings'].get('min_brightness', 1))
 
@@ -210,7 +220,7 @@ class LEDMatrixController:
             if brightness <= 0:
                 scaled_brightness = min_brightness
             else:
-                scaled_brightness = min_brightness + (brightness / 62194) * (max_brightness - min_brightness)
+                scaled_brightness = min_brightness + (brightness / max_brightness_source) * (max_brightness - min_brightness)
 
             return max(0.0, min(1.0, scaled_brightness / 255))
         except Exception as e:
