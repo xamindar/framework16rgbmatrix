@@ -9,19 +9,23 @@ I recommend using udev rules to set persistent names for these input modules, so
 ***
 ### Simple Installation Steps (Linux):
 
-1) Place led_config.ini and run_rgb_matrix.py under /usr/local/share/framework16rgbmatrix/
+1. Place **led_config.ini** and **run_rgb_matrix.py** under /usr/local/share/framework16rgbmatrix/
+2. Place **rgbmatrix.service** under /etc/systemd/system/
 
-2) Place rgbmatrix.service under /etc/systemd/system/
    -Run "systemctl daemon-reload" to make sysemd aware of it.
 
-3) Place 98-rgb-led-matrix.rules under /etc/udev/rules.d/
-   -Modify 98-rgb-led-matrix.rules to contain serial numvers of your rgb matrix modules. Get serials with something like 'lsusb -vv | grep "iProduct\|iSerial" | grep -A1 "RP2040"'.
+3. Place **98-rgb-led-matrix.rules** under /etc/udev/rules.d/
+
+   -Modify **98-rgb-led-matrix.rules** to contain serial numvers of your rgb matrix modules. Get serials with something like 'lsusb -vv | grep "iProduct\|iSerial" | grep -A1 "RP2040"'.
+
    -Run the folloing to apply new rules: "udevadm control --reload-rules && udevadm trigger"
 
-4) Edit the /usr/local/share/framework16rgbmatrix/led_config.ini config file and make any modifications needed.
+4. Edit the **/usr/local/share/framework16rgbmatrix/led_config.ini** config file and make any modifications needed.
    
-5) Enable and start the service:
+5. Enable and start the service:
+
    systemctl enable --now rgbmatrix.service
+
 ***
 
 
