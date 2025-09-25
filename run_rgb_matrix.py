@@ -210,7 +210,7 @@ class LEDMatrixController:
             if brightness <= 0:
                 scaled_brightness = min_brightness
             else:
-                scaled_brightness = min_brightness + (brightness / 255) * (max_brightness - min_brightness)
+                scaled_brightness = min_brightness + (brightness / 62194) * (max_brightness - min_brightness)
 
             return max(0.0, min(1.0, scaled_brightness / 255))
         except Exception as e:
