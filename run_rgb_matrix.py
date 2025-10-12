@@ -497,7 +497,15 @@ class LEDMatrixController:
 
     def cpu_load2_module(self, start_row):
         frame = [(0, 0, 0)] * self.total_leds
-        cpu_load = psutil.cpu_percent(percpu=True)[:8]
+        full_cpu_load = psutil.cpu_percent(percpu=True)
+        cpu_load = []
+        for i in range(0, len(full_cpu_load), 2):
+            if i + 1 < len(full_cpu_load):
+                cpu_load.append(max(full_cpu_load[i], full_cpu_load[i + 1]))
+            else:
+                cpu_load.append(full_cpu_load[i])
+        # Optionally limit to 8 if more pairs exist
+        cpu_load = cpu_load[:8]
         temp = self.get_cpu_temp()
         temp_factor = max(0, min(1, (temp - 50) / 50))
         temp_color = tuple(int(a + (b - a) * temp_factor) for a, b in
