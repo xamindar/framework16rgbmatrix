@@ -442,54 +442,6 @@ class LEDMatrixController:
     def cpu_load1_module(self, start_row):
         frame = [(0, 0, 0)] * self.total_leds
         cpu_load = psutil.cpu_percent(percpu=True)
-        temp = self.get_cpu_temp()
-        temp_factor = max(0, min(1, (temp - 50) / 50))
-        temp_color = tuple(int(a + (b - a) * temp_factor) for a, b in 
-                           zip(self.colors['blue'], self.colors['red']))
-        for row in range(start_row, start_row + 16):
-            frame[row * 9 + 4] = temp_color
-    
-        for core, load in enumerate(cpu_load[:16]):
-            target_leds = min(8, int((load / 100) * 8 + 0.5))
-            current = self.current_leds[core]
-            if current < target_leds:
-                self.current_leds[core] += 1
-            elif current > target_leds:
-                self.current_leds[core] -= 1
-            leds_to_fill = self.current_leds[core]
-            load_factor = load / 100
-            load_color = tuple(int(a + (b - a) * load_factor) for a, b in 
-                               zip(self.colors['light_blue'], self.colors['purple']))
-            if core % 2 == 0:  # Even cores (left side)
-                outward_row = start_row + core
-                inward_row = start_row + core + 1
-                if leds_to_fill <= 4:
-                    for col in range(3, 3 - leds_to_fill, -1):
-                        frame[outward_row * 9 + col] = load_color
-                else:
-                    for col in range(0, 4):
-                        frame[outward_row * 9 + col] = load_color
-                    leds_in = leds_to_fill - 4
-                    for col in range(leds_in):
-                        frame[inward_row * 9 + col] = load_color
-            else:  # Odd cores (right side)
-                outward_row = start_row + core - 1
-                inward_row = start_row + core
-                if leds_to_fill <= 4:
-                    for col in range(5, 5 + leds_to_fill):
-                        frame[outward_row * 9 + col] = load_color
-                else:
-                    for col in range(5, 9):
-                        frame[outward_row * 9 + col] = load_color
-                    leds_in = leds_to_fill - 4
-                    for col in range(8, 8 - leds_in, -1):
-                        frame[inward_row * 9 + col] = load_color
-        return frame
-
-
-    def cpu_load1_module(self, start_row):
-        frame = [(0, 0, 0)] * self.total_leds
-        cpu_load = psutil.cpu_percent(percpu=True)
         try:
             temp = psutil.sensors_temperatures()[self.config['Settings']['cpu_temp']][0].current
         except:
