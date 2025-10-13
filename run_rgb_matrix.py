@@ -172,7 +172,7 @@ class LEDMatrixController:
                 'panel_1_dev': '/dev/ttyRGBM1',
                 'panel_2_dev': '/dev/ttyRGBM2',
                 'brightness_source': '/sys/class/backlight/amdgpu_bl2/brightness',
-                'panel_1_order': 'cpu_temp,cpu_load2,gpu_text,gpu2',
+                'panel_1_order': 'cpu_temp,cpu_load2,gpu2,dgpu_temp',
                 'panel_2_order': 'battery2,power1,line_pink,ram3,line_brown,net2,line_brown,drive1',
                 'cpu_temp': 'k10temp',
                 'igpu_load': '/sys/class/drm/card2/device/gpu_busy_percent',
@@ -881,13 +881,13 @@ class LEDMatrixController:
         return frame
 
     def gpu2_module(self, start_row):
-        """Dual GPU monitor with 'OFF' in D3cold and sleep logic, now 8 rows"""
+        """Dual GPU monitor with 'OFF' when in D3cold and sleep logic, now 8 rows"""
         frame = [(0, 0, 0)] * self.total_leds
     
         # Define a darker orange color for dGPU
         dark_orange = (200, 100, 0)
     
-        # Rows 0-3: iGPU Info (previously 4-7)
+        # Rows 0-3: iGPU Info
         igpu_load = self.get_gpu_load('igpu_load')
         igpu_temp = self.get_gpu_temp('igpu_temp')
         igpu_mem_percent = self.get_gpu_mem_percent('igpu_mem_total', 'igpu_mem_used')
@@ -899,7 +899,7 @@ class LEDMatrixController:
                 if i_grid[row][col]:
                     frame[(start_row + row) * 9 + col] = self.colors['yellow']
     
-        # iGPU Load (rows 0, 1, 2; previously 4, 5, 6)
+        # iGPU Load (rows 0, 1, 2)
         max_load_leds = 9
         target_load_pixels = int(igpu_load * max_load_leds * 3 + 0.5)
         if self.current_igpu_load < target_load_pixels:
@@ -919,7 +919,7 @@ class LEDMatrixController:
                 frame[(start_row + 0) * 9 + (8 - col)] = load_color
                 frame[(start_row + 2) * 9 + (8 - col)] = load_color
     
-        # iGPU Memory (row 3; previously 7)
+        # iGPU Memory (row 3)
         max_mem_leds = 9
         target_mem_leds = int(igpu_mem_percent * max_mem_leds + 0.5)
         if self.current_igpu_mem < target_mem_leds:
@@ -933,10 +933,10 @@ class LEDMatrixController:
                                  zip(self.colors['aqua'], self.colors['aqua']))
                 frame[(start_row + 3) * 9 + (8 - col)] = mem_color
     
-        # Rows 4-7: dGPU Info (previously 8-11)
+        # Rows 4-7: dGPU Info
         dgpu_sleep_time = float(self.config['Settings'].get('dgpu_sleep_time', 6))
     
-        # Initialize tracking attributes (unchanged)
+        # Initialize tracking attributes
         if not hasattr(self, 'last_dgpu_poll_time'):
             self.last_dgpu_poll_time = 0
         if not hasattr(self, 'last_dgpu_powerstate_time'):
@@ -981,13 +981,28 @@ class LEDMatrixController:
             self.dgpu_load_zero_count = 0  # Reset counter in D3cold
             logger.debug(f"DEBUG - dGPU in D3cold, sleeping: {self.dgpu_sleeping}, load: {dgpu_load}")
     
-            # Show "OFF" (only in D3cold)
+            # Show scrolling zig-zag for power off
+            off_grid = [[1,0,0,0,0,0,0,1], [0,1,0,0,0,0,1,0], [0,0,1,0,0,1,0,0], [0,0,0,1,1,0,0,0]]
+            display_width = 6
+            word_length = 8
+            gap = 0
+            total_pattern_length = word_length + gap
+            # t = (time.time() % 1)
+            t = (current_time % 1)
+            offset = int(t * total_pattern_length)
+            for row in range(4):
+                for col in range(display_width):
+                    pattern_col = (col + offset) % total_pattern_length
+                    if pattern_col < word_length and off_grid[row][pattern_col]:
+                        frame[(start_row + 4 + row) * 9 + col + 3] = self.colors['purple']
+
+            """  
+            # Show scrolling "OFF"
             o_grid = [[0,1,0], [1,0,1], [1,0,1], [0,1,0]]
             f_grid = [[1,1,1], [1,0,0], [1,1,0], [1,0,0]]
-            f2_grid = [[1,1,1], [1,0,0], [1,1,0], [1,0,0]]
             display_width = 6
             word_length = 9
-            gap = 3
+            gap = 2
             total_pattern_length = word_length + gap
             t = (time.time() % 2) / 2
             offset = int(t * total_pattern_length)
@@ -998,8 +1013,8 @@ class LEDMatrixController:
                         frame[(start_row + 4 + row) * 9 + col + 3] = dark_orange
                     elif 3 <= pattern_col < 6 and f_grid[row][pattern_col - 3]:
                         frame[(start_row + 4 + row) * 9 + col + 3] = dark_orange
-                    elif 6 <= pattern_col < 9 and f2_grid[row][pattern_col - 6]:
-                        frame[(start_row + 4 + row) * 9 + col + 3] = dark_orange
+                    elif 6 <= pattern_col < 9 and f_grid[row][pattern_col - 6]:
+                        frame[(start_row + 4 + row) * 9 + col + 3] = dark_orange """
         elif self.dgpu_sleeping and current_time - self.last_dgpu_poll_time < dgpu_sleep_time:
             # Sleeping but not D3cold: Use last values, no "OFF"
             dgpu_load = self.last_dgpu_load
@@ -1031,7 +1046,7 @@ class LEDMatrixController:
                 self.dgpu_load_zero_count = 0
                 logger.debug(f"DEBUG - dGPU active, sleeping: {self.dgpu_sleeping}, load: {dgpu_load}")
     
-        # dGPU Load (rows 4, 5, 6; previously 8, 9, 10)
+        # dGPU Load (rows 4, 5, 6)
         target_load_pixels = int(dgpu_load * max_load_leds * 3 + 0.5)
         if self.current_dgpu_load < target_load_pixels:
             self.current_dgpu_load += 1
@@ -1050,7 +1065,7 @@ class LEDMatrixController:
                 frame[(start_row + 4) * 9 + (8 - col)] = load_color
                 frame[(start_row + 6) * 9 + (8 - col)] = load_color
     
-        # dGPU Memory (row 7; previously 11)
+        # dGPU Memory (row 7)
         target_mem_leds = int(dgpu_mem_percent * max_mem_leds + 0.5)
         if self.current_dgpu_mem < target_mem_leds:
             self.current_dgpu_mem += 1
@@ -1398,6 +1413,120 @@ class LEDMatrixController:
 
         return frame
         
+    def dgpu_temp_module(self, start_row):
+        # Display dGPU temperature in 4 rows with up to 3 digits, adjusted layout
+        frame = [(0, 0, 0)] * self.total_leds
+
+        dgpu_sleep_time = float(self.config['Settings'].get('dgpu_sleep_time', 6))
+    
+        # Initialize tracking attributes
+        if not hasattr(self, 'last_dgpu_poll_time'):
+            self.last_dgpu_poll_time = 0
+        if not hasattr(self, 'last_dgpu_powerstate_time'):
+            self.last_dgpu_powerstate_time = 0
+        if not hasattr(self, 'dgpu_sleeping'):
+            self.dgpu_sleeping = False
+        if not hasattr(self, 'last_dgpu_load'):
+            self.last_dgpu_load = 0.0
+            self.last_dgpu_temp = 0.0
+            self.last_dgpu_mem_percent = 0.0
+        if not hasattr(self, 'last_dgpu_powerstate'):
+            self.last_dgpu_powerstate = "unknown"
+        if not hasattr(self, 'dgpu_load_zero_count'):
+            self.dgpu_load_zero_count = 0
+    
+        current_time = time.time()
+
+        # Check dGPU power state
+        if not self.dgpu_sleeping or current_time - self.last_dgpu_powerstate_time >= dgpu_sleep_time:
+            dgpu_powerstate = self.get_dgpu_powerstate()
+            self.last_dgpu_powerstate = dgpu_powerstate
+            self.last_dgpu_powerstate_time = current_time
+            logger.debug(f"DEBUG - dGPU power state: {dgpu_powerstate}")
+        else:
+            dgpu_powerstate = self.last_dgpu_powerstate
+    
+
+        # Determine dGPU state
+        if dgpu_powerstate == "d3cold":
+            dgpu_temp = self.last_dgpu_temp
+            self.dgpu_sleeping = True
+            self.last_dgpu_poll_time = current_time
+            self.dgpu_load_zero_count = 0  # Reset counter in D3cold
+            logger.debug(f"DEBUG - dGPU in D3cold, sleeping: {self.dgpu_sleeping}, temp: {dgpu_temp}")
+    
+            # Show 0 temp for power off
+            off_grid = [[0,0,0,0,1,0,0,0,0], [1,1,0,1,0,1,0,1,1], [1,1,0,1,0,1,0,1,1], [0,0,0,0,1,0,0,0,0]]
+            display_width = 9
+            word_length = 9
+            total_pattern_length = word_length
+            for row in range(4):
+                for col in range(9):
+                    if off_grid[row][col]:
+                        frame[(start_row + row) * 9 + col] = self.colors['green']
+        elif self.dgpu_sleeping and current_time - self.last_dgpu_poll_time < dgpu_sleep_time:
+            # Sleeping but not D3cold: Use last values, no "OFF"
+            dgpu_temp = self.last_dgpu_temp
+            self.dgpu_load_zero_count = 0  # Reset counter while sleeping
+            logger.debug(f"DEBUG - dGPU in sleep (not D3cold), sleeping: {self.dgpu_sleeping}, temp: {dgpu_temp}, time left: {dgpu_sleep_time - (current_time - self.last_dgpu_poll_time):.1f}s")
+        else:
+            # Active or sleep expired: Poll normally
+            dgpu_temp = self.get_gpu_temp('dgpu_temp')
+            self.last_dgpu_temp = dgpu_temp
+
+            temp = dgpu_temp  # Get dGPU temp in Celsius
+            
+            # Calculate temp factor (0 to 1) for color transition, same as cpu_load2
+            temp_factor = max(0, min(1, (temp - 50) / 50))
+            temp_color = tuple(int(a + (b - a) * temp_factor) for a, b in
+                            zip(self.colors['blue'], self.colors['red']))
+
+            # Convert temperature to integer and extract digits
+            temp_int = int(temp + 0.5)  # Round to nearest integer
+            temp_str = str(temp_int)  # Convert to string without padding
+
+            # Determine number of digits and adjust layout
+            if len(temp_str) == 3:
+                # 3 digits: cols 0-2 (hundreds), 3-5 (tens), 6-8 (ones)
+                grid_hundreds = self.alpha_grids[temp_str[0]]
+                grid_tens = self.alpha_grids[temp_str[1]]
+                grid_ones = self.alpha_grids[temp_str[2]]
+                for row in range(4):
+                    # Hundreds (cols 0-2)
+                    for col in range(3):
+                        if grid_hundreds[row][col]:
+                            frame[(start_row + row) * 9 + col] = temp_color
+                    # Tens (cols 3-5)
+                    for col in range(3):
+                        if grid_tens[row][col]:
+                            frame[(start_row + row) * 9 + (3 + col)] = temp_color
+                    # Ones (cols 6-8)
+                    for col in range(3):
+                        if grid_ones[row][col]:
+                            frame[(start_row + row) * 9 + (6 + col)] = temp_color
+            elif len(temp_str) == 2:
+                # 2 digits: col 0 blank, cols 1-3 (tens), col 4 blank, cols 5-7 (ones), col 8 blank
+                grid_tens = self.alpha_grids[temp_str[0]]
+                grid_ones = self.alpha_grids[temp_str[1]]
+                for row in range(4):
+                    # Tens (cols 1-3)
+                    for col in range(3):
+                        if grid_tens[row][col]:
+                            frame[(start_row + row) * 9 + (1 + col)] = temp_color
+                    # Ones (cols 5-7)
+                    for col in range(3):
+                        if grid_ones[row][col]:
+                            frame[(start_row + row) * 9 + (5 + col)] = temp_color
+            else:  # len(temp_str) == 1
+                # 1 digit: cols 0-2 blank, cols 3-5 (ones), cols 6-8 blank
+                grid_ones = self.alpha_grids[temp_str[0]]
+                for row in range(4):
+                    # Ones (cols 3-5)
+                    for col in range(3):
+                        if grid_ones[row][col]:
+                            frame[(start_row + row) * 9 + (3 + col)] = temp_color
+        return frame
+        
     def run(self):
         num_panels = int(self.config['Settings']['number_of_panels'])
         modules = {
@@ -1406,6 +1535,7 @@ class LEDMatrixController:
             'cpu_load1': (self.cpu_load1_module, 16), # cpu load, u-shaped lines
             'cpu_load2': (self.cpu_load2_module, 16), # cpu load, spiral
             'cpu_temp': (self.cpu_temp_module, 4),  # CPU temp module, 4 rows
+            'dgpu_temp': (self.dgpu_temp_module, 4), # dGPU temp module, 4 rows
             'drive1': (self.drive1_module, 9), # drive activity, circle
             'net1': (self.net1_module, 4), # 
             'net2': (self.net2_module, 3), # network acivity, incremental bars
