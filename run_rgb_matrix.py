@@ -174,10 +174,14 @@ class LEDMatrixController:
             ' ': [[0,0,0], [0,0,0], [0,0,0], [0,0,0]]  # Blank space
         }
 
-        # Add power tracking variables
-        self.last_battery_percent = None
-        self.last_battery_time = None
-        self.last_power_watts = 0
+        # Missing module backoff
+        self.serial_retry_delays = {0: 0.1, 1: 0.1}  # Initial delay for each panel
+        self.serial_retry_counts = {0: 0, 1: 0}      # Retry count for each panel
+        self.max_retry_delay = 20.0                   # Max disconnected delay (seconds)
+        self.backoff_factor = 2.0                    # Double delay each retry
+        # Lid pull backoff
+        self.lid_poll_interval = 3.0  # Poll every 3 seconds
+        self.last_lid_check_time = 0
 
         # Cache dGPU sleep time
         dgpu_autosuspend_path = f"{self.dgpu_dev}/device/power/autosuspend_delay_ms"
@@ -472,24 +476,38 @@ class LEDMatrixController:
         try:
             with open('/proc/acpi/button/lid/LID0/state', 'r') as f:
                 state = f.read().strip()
-                return 'closed' in state.lower()
+                is_closed = 'closed' in state.lower()
+                logger.debug(f"Lid state: {'closed' if is_closed else 'open'}")
+                return is_closed
         except FileNotFoundError:
-            logger.debug("Lid state file not found, assuming lid is open")
+            logger.warning("Lid state file not found, assuming lid is open")
             return False
         except Exception as e:
-            logger.error(f"Error checking lid state: {e}")
-            return False
+            logger.warning(f"Error checking lid state: {e}")
+            return self.lid_closed  # Fallback to last known state
 
     def connect_panels(self):
         for panel_id, panel in self.panels.items():
             if not panel['serial'] and self.running and not self.lid_closed:
+                device = self.panels[panel_id]['device']
+                retry_delay = self.serial_retry_delays[panel_id]
                 try:
                     panel['serial'] = serial.Serial(panel['device'], 115200, timeout=1)
                     time.sleep(2)
                     response = panel['serial'].readline()
+                    self.serial_retry_delays[panel_id] = 0.1  # Reset delay
+                    self.serial_retry_counts[panel_id] = 0    # Reset count
                     logger.info(f"Connected to panel {panel_id} at {panel['device']}, response: {response}")
                 except serial.SerialException as e:
-                    logger.info(f"Waiting for panel {panel_id} at {panel['device']}: {e}")
+                    self.serial_retry_counts[panel_id] += 1
+                    self.serial_retry_delays[panel_id] = min(
+                        self.max_retry_delay,
+                        retry_delay * self.backoff_factor
+                    )
+                    logger.warning(
+                        f"Failed to connect to panel {panel_id} at {device}: {e}. "
+                        f"Retry {self.serial_retry_counts[panel_id]} after {self.serial_retry_delays[panel_id]}s"
+                    )
                     time.sleep(1)
 
     def send_frame(self, panel_id, frame):
@@ -1633,23 +1651,31 @@ class LEDMatrixController:
         self.connect_panels()
 
         try:
+            last_retry_times = {0: 0, 1: 0}  # Track last retry time per panel
             while self.running:
+                current_time = time.time()
                 current_lid_state = self.is_lid_closed()
-                
-                if current_lid_state != self.lid_closed:
-                    self.lid_closed = current_lid_state
-                    if self.lid_closed:
-                        logger.info("Lid closed, disconnecting panels")
-                        self.disconnect_panels()
-                    else:
-                        logger.info("Lid opened, reconnecting panels")
-                        self.connect_panels()
+                # Check lid state only every lid_poll_interval seconds
+                if current_time - self.last_lid_check_time >= self.lid_poll_interval:
+                    current_lid_state = self.is_lid_closed()
+                    self.last_lid_check_time = current_time
+                    if current_lid_state != self.lid_closed:
+                        self.lid_closed = current_lid_state
+                        if self.lid_closed:
+                            logger.info("Lid closed, disconnecting panels")
+                            self.disconnect_panels()
+                        else:
+                            logger.info("Lid opened, reconnecting panels")
+                            self.connect_panels()
 
                 if not self.lid_closed:
                     for panel_id in range(min(num_panels, 2)):
                         if not self.panels[panel_id]['serial']:
-                            logger.info(f"Attempting to reconnect panel {panel_id}")
-                            self.connect_panels()
+                            # Only retry if enough time has passed
+                            if current_time - last_retry_times[panel_id] >= self.serial_retry_delays[panel_id]:
+                                logger.info(f"Attempting to reconnect panel {panel_id}")
+                                self.connect_panels()
+                                last_retry_times[panel_id] = current_time
                             continue
 
                         frame = [(0, 0, 0)] * self.total_leds
