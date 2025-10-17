@@ -1,0 +1,37 @@
+# Config using all the dial modules. iGPU info only.
+[Settings]
+#########################
+# Listed order and modules to display. See "def run(self)" towards the bottom of the code for all available modules.
+#########################
+panel_1_order = cpu_text,line_blue,cpu_temp,line_blue,cpu_load3,line_green,gpu_text,line_green,gpu1,net2
+panel_2_order = battery1,line_pink,ram3,drive1,line_pink
+##########################
+# End panel module order #
+##########################
+#
+# number of panels in use. (1 or 2)
+number_of_panels = 2
+# serial devices your panels are on (recommend using udev rules for persistent names. See example udev rule on github.)
+panel_1_dev = /dev/ttyRGBM1
+panel_2_dev = /dev/ttyRGBM2
+# screen brightness location. This can be distro dependant. Or under "amdgpu_bl1" if you do not have a descrete gpu.
+brightness_source = /sys/class/backlight/amdgpu_bl2/brightness
+cpu_temp = k10temp
+# intedrated GPU sys location. This is likely disto dependant. Verify these exist or adjust accordingly.
+igpu_dev = /sys/class/drm/card2
+# descrete GPU sys location. This is likely disto dependant. Verify these exist or adjust accordingly.
+dgpu_dev = /sys/class/drm/card1
+# Min and max brightness (values between 1 and 255). This is a little wonky but these RGB panels are BRIGHT 
+# already, too bright in some cases. Colors are not right at lower brightnesses.
+max_brightness = 150
+min_brightness = 1
+debug = false
+# colors used for each clock1 module digit. Change as desired.
+clock1_colors = aqua,aqua,yellow,blue,blue
+clock1_type = 24
+# colors for each clock2 module digit.
+clock2_colors = blue,aqua,blue,aqua,blue,pink
+# "GPU" text module colors.  
+gpu_text_colors = red,yellow,red
+cpu_text_colors = aqua,red,aqua
+

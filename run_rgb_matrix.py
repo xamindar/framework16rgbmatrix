@@ -120,10 +120,15 @@ class LEDMatrixController:
         debug_enabled = self.config['Settings'].getboolean('debug', fallback=False)
         logger.setLevel(logging.DEBUG if debug_enabled else logging.INFO)
 
-        self.panels = {
-            0: {'serial': None, 'device': self.config['Settings']['panel_1_dev']},
-            1: {'serial': None, 'device': self.config['Settings']['panel_2_dev']}
-        }
+        if int(self.config['Settings']['number_of_panels']) == 2:
+            self.panels = {
+                0: {'serial': None, 'device': self.config['Settings']['panel_1_dev']},
+                1: {'serial': None, 'device': self.config['Settings']['panel_2_dev']}
+            }
+        else: # not 2, then must be 1. 
+            self.panels = {
+                0: {'serial': None, 'device': self.config['Settings']['panel_1_dev']}
+            }
         self.running = True
         self.matrix_width = 9
         self.matrix_height = 32
@@ -140,13 +145,14 @@ class LEDMatrixController:
         self.disk_monitor = DiskMonitor()
         self.net_monitor = NetworkMonitor()
         self.lid_closed = False
-        self.colors = {
-            'green': (0, 255, 0),
-            'yellow': (255, 255, 0),
+        self.colors = {  # R, G, B
             'red': (255, 0, 0),
-            'orange': (255, 165, 0),
-            'light_green': (144, 238, 144),
+            'green': (0, 255, 0),
             'blue': (0, 0, 255),
+            'yellow': (255, 255, 0),
+            'orange': (255, 100, 0),
+            'dark_orange': (200, 50, 0),
+            'light_green': (144, 238, 144),
             'light_blue': (173, 216, 230),
             'purple': (128, 0, 128),
             'brown': (165, 42, 42),
@@ -169,7 +175,14 @@ class LEDMatrixController:
             '.': [[0,0,0], [0,0,0], [0,0,0], [0,1,0]],
             ':': [[0,1,0], [0,0,0], [0,0,0], [0,1,0]],
             'A': [[0,1,0], [1,0,1], [1,1,1], [1,0,1]],
+            'C': [[0,1,1], [1,0,0], [1,0,0], [0,1,1]],
+            'D': [[1,1,0], [1,0,1], [1,0,1], [1,1,0]],
+            'F': [[1,1,1], [1,0,0], [1,1,0], [1,0,0]],
+            'G': [[0,1,1], [1,0,0], [1,0,1], [0,1,1]],
+            'I': [[1,1,1], [0,1,0], [0,1,0], [1,1,1]],
+            'O': [[0,1,0], [1,0,1], [1,0,1], [0,1,0]],
             'P': [[1,1,1], [1,0,1], [1,1,1], [1,0,0]],
+            'U': [[1,0,1], [1,0,1], [1,0,1], [1,1,1]],
             'W': [[1,0,1], [1,0,1], [1,1,1], [1,1,1]],
             ' ': [[0,0,0], [0,0,0], [0,0,0], [0,0,0]]  # Blank space
         }
@@ -231,6 +244,7 @@ class LEDMatrixController:
                 'clock1_colors': 'red,orange,yellow,green,blue',  # 5 colors for digits
                 'clock1_type': '12',  # Default to 12-hour clock
                 'clock2_colors': 'red,orange,yellow,green,blue,purple',  # Default colors for 6 characters
+                'cpu_text_colors': 'aqua,blue,aqua',  # Default colors for "C", "P", "U"
                 'gpu_text_colors': 'aqua,blue,aqua'  # Default colors for "G", "P", "U"
             }
             with open('led_config.ini', 'w') as configfile:
@@ -1044,6 +1058,35 @@ class LEDMatrixController:
                     frame[row * 9 + (4 + offset)] = gpu_color
 
         return frame
+
+    def cpu_text_module(self, start_row):
+        """Display 'CPU' text in the first 4 rows with configurable colors"""
+        frame = [(0, 0, 0)] * self.total_leds
+    
+        # Get cpu_text colors from config, default to aqua, blue, purple
+        cpu_colors_str = self.config['Settings'].get('cpu_text_colors', 'aqua,blue,purple')
+        color_names = [name.strip() for name in cpu_colors_str.split(',')]
+        # Ensure we have exactly 3 colors, padding with white or trimming excess
+        while len(color_names) < 3:
+            color_names.append('white')
+        cpu_colors = [self.colors.get(name, self.colors['white']) for name in color_names[:3]]
+    
+        # Define grids for "GPU"
+        c_grid = self.alpha_grids['C']
+        p_grid = self.alpha_grids['P']
+        u_grid = self.alpha_grids['U']
+        
+        # Draw "GPU" across cols 0-8 with configurable colors
+        for row in range(4):
+            for col in range(3):
+                if c_grid[row][col]:
+                    frame[(start_row + row) * 9 + col] = cpu_colors[0]  # Color for "C"
+                if p_grid[row][col]:
+                    frame[(start_row + row) * 9 + (3 + col)] = cpu_colors[1]  # Color for "P"
+                if u_grid[row][col]:
+                    frame[(start_row + row) * 9 + (6 + col)] = cpu_colors[2]  # Color for "U"
+    
+        return frame
     def gpu_text_module(self, start_row):
         """Display 'GPU' text in the first 4 rows with configurable colors"""
         frame = [(0, 0, 0)] * self.total_leds
@@ -1057,9 +1100,9 @@ class LEDMatrixController:
         gpu_colors = [self.colors.get(name, self.colors['white']) for name in color_names[:3]]
     
         # Define grids for "GPU"
-        g_grid = [[0,1,1], [1,0,0], [1,0,1], [0,1,1]]
-        p_grid = [[1,1,1], [1,0,1], [1,1,1], [1,0,0]]
-        u_grid = [[1,0,1], [1,0,1], [1,0,1], [1,1,1]]
+        g_grid = self.alpha_grids['G']
+        p_grid = self.alpha_grids['P']
+        u_grid = self.alpha_grids['U']
         
         # Draw "GPU" across cols 0-8 with configurable colors
         for row in range(4):
@@ -1077,16 +1120,13 @@ class LEDMatrixController:
         """Dual GPU monitor with 'OFF' when in D3cold, now 8 rows"""
         frame = [(0, 0, 0)] * self.total_leds
     
-        # Define a darker orange color for dGPU
-        dark_orange = (200, 100, 0)
-    
         # Rows 0-3: iGPU Info
         igpu_load = self.get_gpu_load('igpu')
         igpu_temp = self.get_gpu_temp('igpu')
         igpu_mem_percent = self.get_gpu_mem_percent('igpu')
     
         # "i" in yellow (columns 0-2)
-        i_grid = [[1,1,1], [0,1,0], [0,1,0], [1,1,1]]
+        i_grid = self.alpha_grids['I']
         for row in range(4):
             for col in range(3):
                 if i_grid[row][col]:
@@ -1128,11 +1168,11 @@ class LEDMatrixController:
         dgpu_load, dgpu_temp, dgpu_mem_percent, dgpu_sleeping, dgpu_powerstate = self.get_dgpu_metrics()
 
         # "d" in dark orange (columns 0-2)
-        d_grid = [[1,1,0], [1,0,1], [1,0,1], [1,1,0]]
+        d_grid = self.alpha_grids['D']
         for row in range(4):
             for col in range(3):
                 if d_grid[row][col]:
-                    frame[(start_row + 4 + row) * 9 + col] = dark_orange
+                    frame[(start_row + 4 + row) * 9 + col] = self.colors['dark_orange']
         # Determine dGPU state
         if dgpu_powerstate == "d3cold":
             # Show scrolling zig-zag for power off
@@ -1156,8 +1196,8 @@ class LEDMatrixController:
 
             """  
             # Show scrolling "OFF"
-            o_grid = [[0,1,0], [1,0,1], [1,0,1], [0,1,0]]
-            f_grid = [[1,1,1], [1,0,0], [1,1,0], [1,0,0]]
+            o_grid = self.alpha_grids['O']
+            f_grid = self.alpha_grids['F']
             display_width = 6
             word_length = 9
             gap = 2
@@ -1168,11 +1208,11 @@ class LEDMatrixController:
                 for col in range(display_width):
                     pattern_col = (col + offset) % total_pattern_length
                     if pattern_col < 3 and o_grid[row][pattern_col]:
-                        frame[(start_row + 4 + row) * 9 + col + 3] = dark_orange
+                        frame[(start_row + 4 + row) * 9 + col + 3] = self.colors['dark_orange']
                     elif 3 <= pattern_col < 6 and f_grid[row][pattern_col - 3]:
-                        frame[(start_row + 4 + row) * 9 + col + 3] = dark_orange
+                        frame[(start_row + 4 + row) * 9 + col + 3] = self.colors['dark_orange']
                     elif 6 <= pattern_col < 9 and f_grid[row][pattern_col - 6]:
-                        frame[(start_row + 4 + row) * 9 + col + 3] = dark_orange """
+                        frame[(start_row + 4 + row) * 9 + col + 3] = self.colors['dark_orange'] """
         else:
             # dGPU Load (rows 4, 5, 6)
             target_load_pixels = int(dgpu_load * max_load_leds * 3 + 0.5)
@@ -1613,25 +1653,90 @@ class LEDMatrixController:
                             frame[(start_row + row) * 9 + (3 + col)] = temp_color
         return frame
         
+    def cpu_load3_module(self, start_row):
+        frame = [(0, 0, 0)] * self.total_leds
+        try:
+            cpu_percent = psutil.cpu_percent(interval=None)
+            temp = self.get_cpu_temp()  # Get CPU temp in Celsius, same as cpu_load2_module
+            logger.debug(f"CPU Usage: percent={cpu_percent:.1f}%, temp={temp:.1f}°C")
+        except Exception as e:
+            logger.warning(f"Failed to get CPU usage/temp: {e}")
+            cpu_percent = 0
+            temp = 50.0  # Default temp
+        
+        # Edge coordinates for 9x9 grid
+        edge_coords = [
+            (0, 4), (0, 5), (1, 6), (2, 7), (3, 8), (4, 8), (5, 8),
+            (6, 7), (7, 6), (8, 5), (8, 4), (8, 3), (7, 2), (6, 1),
+            (5, 0), (4, 0), (3, 0), (2, 1), (1, 2), (0, 3)
+        ]
+
+        # Circle coordinates for fill order
+        circle_coords = [
+            (4, 3), (4, 2), (4, 1), (4, 0), 
+            (3, 0), (3, 1), (3, 2), (2, 1), (3, 3), (2, 2), (2, 3), (1, 2), (1, 3), (0, 3), (3, 4), (2, 4), (1, 4), (0, 4),
+            (0, 5), (1, 5), (2, 5), (1, 6), (2, 6), (2, 7), (3, 5), (3, 6), (3, 7), (3, 8), (4, 5), (4, 6), (4, 7), (4, 8), 
+            (5, 8), (5, 7), (5, 6), (6, 7), (5, 5), (6, 6), (7, 6), (6, 5), (5, 4), (7, 5), (8, 5), (6, 4), (7, 4), (8, 4), 
+            (8, 3), (7, 3), (6, 3), (7, 2), (5, 3), (6, 2), (6, 1), (5, 2), (5, 1), (5, 0)
+        ]
+
+        """
+        # Flip coordinates horizontally and vertically
+        # Horizontal flip: col -> (8 - col)
+        # Vertical flip: row -> (8 - row)
+        edge_coords = [(8 - row, 8 - col) for row, col in original_edge_coords]
+        circle_coords = [(8 - row, 8 - col) for row, col in original_circle_coords]
+        """
+
+        # Draw the circle edge
+        edge_color = self.colors['aqua']
+        for row, col in edge_coords:
+            frame[(start_row + row) * 9 + col] = edge_color
+
+        # Draw the purple vertical line from row 4, col 4 to row 7, col 4
+        for col in range(1, 5):  # Rows 4, 5, 6, 7
+            frame[(start_row + 4) * 9 + col ] = self.colors['orange']
+
+        # Calculate temp factor (0 to 1) for color transition, same as cpu_load2_module
+        temp_factor = max(0, min(1, (temp - 50) / 50))
+        fill_color = self.interpolate_color(self.colors['blue'], self.colors['red'], temp_factor)
+
+        # Fill the circle based on CPU usage percentage with smoothing, same rate as cpu_load2_module
+        total_leds = len(circle_coords)
+        target_leds = int((cpu_percent / 100) * total_leds + 0.5)
+        if not hasattr(self, 'current_cpu_load3_leds'):
+            self.current_cpu_load3_leds = 0  # Initialize in first call (or add to __init__)
+        if self.current_cpu_load3_leds < target_leds:
+            self.current_cpu_load3_leds += 2
+        elif self.current_cpu_load3_leds > target_leds:
+            self.current_cpu_load3_leds -= 2
+
+        for i in range(min(self.current_cpu_load3_leds, total_leds)):
+            row, col = circle_coords[i]
+            frame[(start_row + row) * 9 + col] = fill_color
+
+        return frame
 
     def run(self):
         num_panels = int(self.config['Settings']['number_of_panels'])
         modules = {
             'battery1': (self.battery1_module, 12), # huge battery module, spiral fill, 12 rows
             'battery2': (self.battery2_module, 4), # small battery module, 4 rows
+            'cpu_text': (self.cpu_text_module, 4),  # CPU text module, 4 rows. Just shows "CPU" in configurable colors.
             'cpu_load1': (self.cpu_load1_module, 16), # cpu load, u-shaped lines, temp-color line down middle
             'cpu_load2': (self.cpu_load2_module, 16), # cpu load, spiral, temp-color line down middle
+            'cpu_load3': (self.cpu_load3_module, 9), # cpu load, circle dial
             'cpu_temp': (self.cpu_temp_module, 4),  # CPU temp 1module, 4 rows
-            'dgpu_temp': (self.dgpu_temp_module, 4), # dGPU temp module, 4 rows
             'drive1': (self.drive1_module, 9), # drive activity, circle dial
-            'net1': (self.net1_module, 4), # 
-            'net2': (self.net2_module, 3), # network acivity, incremental bars
+            'net1': (self.net1_module, 4), # network acivity, incremental bars
+            'net2': (self.net2_module, 3), # network acivity, left/right
             'ram1': (self.ram1_module, 4), 
             'ram2': (self.ram2_module, 2),
             'ram3': (self.ram3_module, 9), # ram usage, circle dial
             'gpu_text': (self.gpu_text_module, 4),  # GPU text module, 4 rows. Just shows "GPU" in configurable colors.
             'gpu1': (self.gpu1_module, 4), # iGPU only (use if you do not have the dGPU installed)
             'gpu2': (self.gpu2_module, 8),  # iGPU and dGPU load and vram usage
+            'dgpu_temp': (self.dgpu_temp_module, 4), # dGPU temp module, 4 rows
             'clock1': (self.clock1_module, 8), # digital clock, 12 or 24 hour time
             'clock2': (self.clock2_module, 8),
             'power1': (self.power1_module, 4), # overall battery watts draining
