@@ -158,7 +158,8 @@ class LEDMatrixController:
             'brown': (165, 42, 42),
             'aqua': (0, 255, 255),
             'pink': (255, 105, 180),
-            'white': (255, 255, 255)
+            'white': (255, 255, 255),
+            'black': (0, 0, 0) # off
         }
         # Add alphanumeric grids (3x4) for numbers and letters
         self.alpha_grids = {
@@ -1750,6 +1751,7 @@ class LEDMatrixController:
             'line_rainbow': (lambda row: self.line_module(row, 'line_rainbow'), 1), # this one is animated
             'line_aqua': (lambda row: self.line_module(row, 'line_aqua'), 1),
             'line_white': (lambda row: self.line_module(row, 'line_white'), 1),
+            'line_black': (lambda row: self.line_module(row, 'line_black'), 1),
             'line_brown': (lambda row: self.line_module(row, 'line_brown'), 1)
         }
 
