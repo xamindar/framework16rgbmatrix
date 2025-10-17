@@ -10,6 +10,7 @@ I recommend using udev rules to set persistent names for these input modules, so
 ### Simple Installation Steps (Linux):
 
 0. Dependancies: Python 3.6+, pyserial, psutil, numpy.
+   Arch example: "pacman -S python-pyserial python-psutil python-numpy"
 
 1. Place **led_config.ini** and **run_rgb_matrix.py** under /usr/local/share/framework16rgbmatrix/
 2. Place **rgbmatrix.service** under /etc/systemd/system/
