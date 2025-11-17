@@ -40,7 +40,6 @@ Various graphical modules that display the following:
    
    -Arch example: "pacman -S python-pyserial python-psutil python-numpy"
 
-   -Arch example: "pacman -S python-pyserial python-psutil python-numpy"
    -Fedora example: "dnf install python3-pyserial python3-psutil python3-numpy"
 
 1. Place **led_config.ini** and **run_rgb_matrix.py** under /usr/local/share/framework16rgbmatrix/
@@ -51,6 +50,7 @@ Various graphical modules that display the following:
 3. Place **98-rgb-led-matrix.rules** under /etc/udev/rules.d/
 
    -Modify **98-rgb-led-matrix.rules** to contain serial numbers of your rgb matrix modules. Get serials with something like 'lsusb -vv | grep "iProduct\|iSerial" | grep -A1 "RP2040"'.
+
    -On Fedora 43+, you may need to change the group from "uucp" to "dialout".
 
    -Run the following to apply new rules: "udevadm control --reload-rules && udevadm trigger"
