@@ -37,6 +37,8 @@ Various graphical modules that display the following:
 ### Installation Steps (Linux):
 
 0. Dependancies: Python 3.6+, pyserial, psutil, numpy.
+   
+   -Arch example: "pacman -S python-pyserial python-psutil python-numpy"
 
    -Arch example: "pacman -S python-pyserial python-psutil python-numpy"
    -Fedora example: "dnf install python3-pyserial python3-psutil python3-numpy"
